@@ -1,0 +1,7 @@
+library disklibrary
+load org.jpc.plugins.VirtualKeyboard(keyboard=datafiles/keyboards/updated)
+load org.jpc.plugins.LuaPlugin(kernel=datafiles/luakernel,luapath=lua)
+load org.jpc.plugins.CiteTool(port=5000)
+load org.jpc.plugins.PCControl(extramenu=datafiles/extramenu)
+command pccontrol-setwinpos 480 260
+command pc-assemble

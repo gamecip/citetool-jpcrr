@@ -18,3 +18,5 @@ jpcrr-microcode*
 *.exe
 /org/jpc/Exceptions.java
 /org/jpc/Revision.java
+.idea
+*.iml
