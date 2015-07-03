@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdexcept>
 #include <sstream>
+#include <cstdlib>
 
 #define DEFAULT_RESCALER "lanczos2"
 

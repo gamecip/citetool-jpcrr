@@ -29,7 +29,7 @@
 
 public class JPCApplication
 {
-    private static String[] DEFAULT_ARGS = new String[]{"-autoexec", "init_instructions/citetool.jpcrrinit"};
+    private static String[] DEFAULT_ARGS = new String[]{"-autoexec", "assemble.jpcrrinit"};
     public static void main(String[] args) throws Exception
     {
         if(args.length == 0)

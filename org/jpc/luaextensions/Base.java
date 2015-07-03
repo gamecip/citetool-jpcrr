@@ -37,6 +37,7 @@ import org.jpc.emulator.pci.peripheral.VGACard;
 import org.jpc.emulator.DisplayController;
 import org.jpc.emulator.EventRecorder;
 import org.jpc.emulator.motherboard.IntervalTimer;
+import org.jpc.emulator.peripheral.Keyboard;
 import org.jpc.plugins.LuaPlugin;
 
 //Locking this class is used for preventing termination and when terminating.
@@ -215,5 +216,17 @@ public class Base extends LuaPlugin.LuaResource
 
         l.pushBoolean(ret == 1);
         return 1;
+    }
+
+    public static int luaCB_hold_mouse_motion(Lua l, LuaPlugin plugin)
+    {
+        Keyboard kbd = ((Keyboard)plugin.getComponent(Keyboard.class));
+        if(kbd == null)
+            return 0;
+        int x = (int)l.checkNumber(1);
+        int y = (int)l.checkNumber(2);
+        int z = (l.type(3) == Lua.TNUMBER) ? (int)l.checkNumber(3) : 0;
+        kbd.mouseSetHolds(x, y, z);
+        return 0;
     }
 }

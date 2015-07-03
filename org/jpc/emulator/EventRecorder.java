@@ -36,6 +36,7 @@ import java.io.*;
 import java.util.*;
 import java.math.BigInteger;
 import static org.jpc.Misc.errorDialog;
+import static org.jpc.Misc.emitBeep;
 
 public class EventRecorder implements TimerResponsive
 {
@@ -95,6 +96,20 @@ public class EventRecorder implements TimerResponsive
      private String[][] headers;
      private BigInteger movieRerecordCount;
      private String projectID;
+     private boolean readonlyMode;
+
+     public void setReadonlyMode(boolean newState)
+     {
+         boolean previous = readonlyMode;
+         readonlyMode = newState;
+         if(previous && !readonlyMode)
+             truncateEventStream();
+     }
+
+     public boolean getReadonlyMode()
+     {
+         return readonlyMode;
+     }
 
      public String getProjectID()
      {
@@ -167,6 +182,10 @@ public class EventRecorder implements TimerResponsive
      public void addEvent(long timeLowBound, Class<? extends HardwareComponent> clazz,
          String[] args) throws IOException
      {
+         if(readonlyMode) {
+             emitBeep();
+             return;
+         }
          /* Compute the final time for event. */
          long timeNow = sysClock.getTime();
          synchronized(this) {

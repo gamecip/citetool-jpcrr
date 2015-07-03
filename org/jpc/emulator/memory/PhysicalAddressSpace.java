@@ -874,4 +874,14 @@ public final class PhysicalAddressSpace extends AddressSpace implements Hardware
     public void loadInitialContents(int address, byte[] buf, int off, int len) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
+    public void pokeRAM(int address, byte val) {
+        int rpage = address >>> 12;
+        if(rpage >= quickNonA20MaskedIndex.length)
+            return;
+        Memory page = quickNonA20MaskedIndex[rpage];
+        if(!(page instanceof LazyCodeBlockMemory))
+            return;
+        page.setByte(address & 4095, val);
+    }
 }

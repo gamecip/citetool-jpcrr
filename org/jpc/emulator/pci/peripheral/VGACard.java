@@ -334,6 +334,7 @@ public class VGACard extends AbstractPCIDevice implements IOPortCapable, TimerRe
     private boolean returningFromVretrace;
 
     private boolean paletteDebuggingEnabled;  //Not saved.
+    private boolean paletteLocked;  //Not saved.
     private PrintStream vgaDebugSaveIO;           //Not saved.
 
     public String STATUS_Frame_number;
@@ -664,6 +665,11 @@ public class VGACard extends AbstractPCIDevice implements IOPortCapable, TimerRe
     public void DEBUGOPTION_VGA_palette_debugging(boolean _state)
     {
         paletteDebuggingEnabled = _state;
+    }
+
+    public void DEBUGOPTION_VGA_lock_palette(boolean _state)
+    {
+        paletteLocked = _state;
     }
 
     public void DEBUGOPTION_VGA_io_debugging(boolean _state)
@@ -3118,6 +3124,7 @@ public class VGACard extends AbstractPCIDevice implements IOPortCapable, TimerRe
     private final boolean updatePalette16()
     {
         boolean fullUpdate = false;
+        if(paletteLocked) return false;
         int[] palette = lastPalette;
 
         for(int colorIndex = AR_INDEX_PALLETE_MIN; colorIndex <= AR_INDEX_PALLETE_MAX; colorIndex++)
@@ -3147,6 +3154,7 @@ public class VGACard extends AbstractPCIDevice implements IOPortCapable, TimerRe
     private final boolean updatePalette256()
     {
         boolean fullUpdate = false;
+        if(paletteLocked) return false;
         int[] palette = lastPalette;
 
         for(int i = 0, v = 0; i < 256; i++, v+=3) {

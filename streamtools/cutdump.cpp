@@ -40,8 +40,14 @@ int real_main(int argc, char** argv)
 
 	packet* p;
 	while((p = rchan.read())) {
-		if(p->rp_timestamp < low || p->rp_timestamp > high)
+		if(p->rp_timestamp < low) {
+			delete p;
 			continue;
+		}
+		if(p->rp_timestamp > high) {
+			delete p;
+			break;
+		}
 		if(!channel_assignments.count(p->rp_channel_name)) {
 			//No channel yet, create.
 			channel_assignments[p->rp_channel_name] = (uint16_t)chans.size();

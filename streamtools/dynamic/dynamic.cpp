@@ -2,8 +2,13 @@
 #include <iostream>
 #include <cstdarg>
 #include <cstring>
+#include <cstdio>
+
+#if !defined(_WIN32) && !defined(_WIN64)
 #define _USE_BSD
+#include <unistd.h>
 #include <sys/mman.h>
+#endif
 
 void* commit_machine_code(const std::vector<uint8_t>& code)
 {

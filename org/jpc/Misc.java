@@ -33,6 +33,7 @@ import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
 import java.util.*;
+import java.awt.Toolkit;
 import javax.swing.*;
 
 import org.jpc.diskimages.ImageLibrary;
@@ -324,6 +325,13 @@ public class Misc
         }
     }
 
+    public static void emitBeep()
+    {
+        try {
+            Toolkit.getDefaultToolkit().beep();
+        } catch(Throwable e) {
+        }
+    }
 
     public static String messageForException(Throwable e, boolean chase)
     {

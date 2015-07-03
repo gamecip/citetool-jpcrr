@@ -172,20 +172,40 @@ public class Plugins
             return true;
         if(type == String.class)
             return true;
-        if(type == Integer.class)
+        if(type == Integer.class) {
+            if(argument.toString().matches("0x[0-9a-fA-F]+")) {
+                //Parse as hexadecimal.
+                try {
+                    Integer.valueOf(argument.toString().substring(2), 16);
+                    return true;
+                } catch(NumberFormatException e) {
+                    return false;
+                }
+            }
             try {
                 Integer.decode(argument.toString());
                 return true;
             } catch(NumberFormatException e) {
                 return false;
             }
-        if(type == Long.class)
+        }
+        if(type == Long.class) {
+            if(argument.toString().matches("0x[0-9a-fA-F]+")) {
+                //Parse as hexadecimal.
+                try {
+                    Long.valueOf(argument.toString().substring(2), 16);
+                    return true;
+                } catch(NumberFormatException e) {
+                    return false;
+                }
+            }
             try {
                 Long.decode(argument.toString());
                 return true;
             } catch(NumberFormatException e) {
                 return false;
             }
+        }
         return false;
     }
 
@@ -239,12 +259,28 @@ public class Plugins
         if(type == String.class)
             return argument.toString();
         else if(type == Integer.class) {
+            if(argument.toString().matches("0x[0-9a-fA-F]+")) {
+                //Parse as hexadecimal.
+                try {
+                    return Integer.valueOf(argument.toString().substring(2), 16);
+                } catch(NumberFormatException e) {
+                    return null;
+                }
+            }
             try {
                 return new Integer(Integer.decode(argument.toString()));
             } catch(NumberFormatException e) {
                 return null; //Doesn't convert.
             }
         } else if(type == Long.class) {
+            if(argument.toString().matches("0x[0-9a-fA-F]+")) {
+                //Parse as hexadecimal.
+                try {
+                    return Long.valueOf(argument.toString().substring(2), 16);
+                } catch(NumberFormatException e) {
+                    return null;
+                }
+            }
             try {
                 return new Long(Long.decode(argument.toString()));
             } catch(NumberFormatException e) {

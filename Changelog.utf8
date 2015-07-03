@@ -1,7 +1,43 @@
-Changes since JPC-RR Release 11.5:
-==================================
-Don't crash if Lua asks for an invalid event.
-Fix asking for events from Lua.
+Changes from JPC-RR Release 11.7 to JPC-RR Release 11.8-rc1:
+============================================================
+- Update to NHMLFixup v12.
+- Streamtools: Fix Win32 building.
+- Streamtools: Patch some known Win32 problems.
+- Lua: Fix repaint deadlock.
+- Streamtools: Fix some compile errors.
+- Trigger BIOS keyboard trap on also 8-bit writes.
+- Lua: Implement mouse motion hold.
+- Fix utterly broken repaint code.
+- Lua: Strided memory read.
+- Only mark PC as truly stopped after output cycle ends.
+
+Changes from JPC-RR Release 11.6 to JPC-RR Release 11.7:
+========================================================
+- Streamtools: Fix CSCD output
+- Streamtools: Fix A/V sync in CSCD output.
+- Streamtools: Fix Win32 compiling.
+- Streamtools: Allow overriding output executable.
+- Streamtools: Use RGB mode for x264.
+- Streamtools: Allow escaping , and =.
+- Try to fix freezeups with lua scripts.
+- Close dumps (fix 0-byte dump problem).
+
+
+Changes from JPC-RR Release 11.6-prerelease1 to JPC-RR Release 11.6:
+====================================================================
+- Streamtools: CSCD output.
+
+Changes from JPC-RR Release 11.5 to JPC-RR Release 11.6-prerelease1:
+====================================================================
+- Don't crash if Lua asks for an invalid event.
+- Fix asking for events from Lua.
+- Try to workaround MP4Box negative CTSOffset bug in NHMLFixup
+- Streamtools: Cutdump memory leak fix.
+- Streamtools: Bias to center in TA, not bias to end.
+- Streamtools: Driver name change: x264->x264o, x264n->x264 (copy)
+- Streamtools: Win32 fixes.
+- Streamtools: Guessresolution memory leak fix.
+- Implement readonly mode.
 
 Changes from JPC-RR Release 11.4 to JPC-RR Release 11.5:
 ========================================================

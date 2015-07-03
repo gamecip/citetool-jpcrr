@@ -452,6 +452,7 @@ jpcrr.window = {};
 jpcrr.memorysearch = {};
 jpcrr.hostmemory = {};
 jpcrr.random = {};
+jpcrr.memory2 = {};
 bit = {};
 io = {};
 local HUD = {};
@@ -467,6 +468,7 @@ export_module_in(jpcrr.memorysearch, "org.jpc.luaextensions.MemorySearch");
 export_module_in(HUD, "org.jpc.luaextensions.HUD");
 export_module_in(jpcrr.hostmemory, "org.jpc.luaextensions.HostMemory");
 export_module_in(jpcrr.random, "org.jpc.luaextensions.Random");
+export_module_in(jpcrr.memory2, "org.jpc.luaextensions.Memory2");
 
 -- HUD bindings.
 local HUD = HUD.HUD;

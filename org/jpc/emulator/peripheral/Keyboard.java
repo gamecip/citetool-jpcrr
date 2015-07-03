@@ -140,6 +140,9 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
     private int mouseDx;
     private int mouseDy;
     private int mouseDz;
+    private int mouseHoldDx;
+    private int mouseHoldDy;
+    private int mouseHoldDz;
     private int mouseButtons;
 
     private boolean ioportRegistered;
@@ -171,6 +174,7 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         output.println("\tmouseResolution " + mouseResolution + " mouseSampleRate " + mouseSampleRate);
         output.println("\tmouseWrap " + mouseWrap + " mouseDetectState " + mouseDetectState);
         output.println("\tmouseDx " + mouseDx + " mouseDy " + mouseDy + " mouseDz " + mouseDz);
+        output.println("\tmouseHoldDx " + mouseHoldDx + " mouseHoldDy " + mouseHoldDy + " mouseHoldDz " + mouseHoldDz);
         output.println("\tmouseButtons " + mouseButtons + " ioportRegistered " + ioportRegistered);
         output.println("\tmodifierFlags " + modifierFlags);
         output.println("\tnextMouseStreamSend " + nextMouseStreamSend);
@@ -224,6 +228,9 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         output.dumpObject(mouseStreamTimer);
         output.dumpLong(nextMouseStreamSend);
         output.dumpInt(lastMouseButtons);
+        output.dumpInt(mouseHoldDx);
+        output.dumpInt(mouseHoldDy);
+        output.dumpInt(mouseHoldDz);
     }
 
     public Keyboard(SRLoader input) throws IOException
@@ -257,6 +264,7 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         clock = null;
         mouseStreamTimer = null;
         nextMouseStreamSend = -1;
+        mouseHoldDx = mouseHoldDy = mouseHoldDz = 0;
         lastMouseButtons = mouseButtons;
         listeners = new ArrayList<KeyboardStatusListener>();
         if(!input.objectEndsHere())
@@ -266,6 +274,11 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
             mouseStreamTimer = (Timer)input.loadObject();
             nextMouseStreamSend = input.loadLong();
             lastMouseButtons = input.loadInt();
+        }
+        if(!input.objectEndsHere()) {
+            mouseHoldDx = input.loadInt();
+            mouseHoldDy = input.loadInt();
+            mouseHoldDz = input.loadInt();
         }
         sendKeyStatusReload();
     }
@@ -280,6 +293,7 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         physicalAddressSpace = null;
         linearAddressSpace = null;
         cpu = null;
+        mouseHoldDx = mouseHoldDy = mouseHoldDz = 0;
         reset();
         listeners = new ArrayList<KeyboardStatusListener>();
         sendKeyStatusReload();
@@ -368,6 +382,13 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         mouseStreamTimer = null;
         nextMouseStreamSend = -1;
         lastMouseButtons = mouseButtons;
+    }
+
+    public void mouseSetHolds(int dx, int dy, int dz)
+    {
+        mouseHoldDx = dx;
+        mouseHoldDy = dy;
+        mouseHoldDz = dz;
     }
 
     private void setGateA20State(boolean value)
@@ -606,6 +627,8 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
                 synchronized (queue) {
                     queue.writeData(AUX_ACK, (byte) 1);
                     mouseSendPacket(true);
+                    if(mouseDx == 0 && mouseDy == 0 && mouseDz == 0)
+                        mouseSentPackets();
                 }
                 break;
             case AUX_ENABLE_DEV:
@@ -669,6 +692,27 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         case 4: return 6;
         case 5: return 9;
         default: return 2 * value;
+        }
+    }
+
+    private String S(int v)
+    {
+        return (new Integer(v)).toString();
+    }
+
+    private void mouseSentPackets()
+    {
+        if(recorder.getReadonlyMode()) {
+            return;  //Avoid beeping in readonly mode.
+        }
+        //We can't use ts 0, because the event can then be sent immediately, which can cause desynchs.
+        try {
+            long ts = clock.getTime() + 1;
+            if(mouseHoldDx != 0) recorder.addEvent(ts, getClass(), new String[]{"XMOUSEMOTION", S(mouseHoldDx)});
+            if(mouseHoldDy != 0) recorder.addEvent(ts, getClass(), new String[]{"YMOUSEMOTION", S(mouseHoldDy)});
+            if(mouseHoldDz != 0) recorder.addEvent(ts, getClass(), new String[]{"ZMOUSEMOTION", S(mouseHoldDz)});
+        } catch(Exception e) {
+            System.err.println("Failed to send mouse motion: " + e.getMessage());
         }
     }
 
@@ -975,8 +1019,10 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
                 while (true) {
                     /* if not remote, send event.  Multiple events are sent if too big deltas */
                     mouseSendPacket(false);
-                    if (mouseDx == 0 && mouseDy == 0 && mouseDz == 0)
+                    if (mouseDx == 0 && mouseDy == 0 && mouseDz == 0) {
+                        mouseSentPackets();
                         break;
+                    }
                 }
         }
     }
@@ -1024,8 +1070,10 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
                 mouseDx = 0;
                 mouseDy = 0;
                 mouseDz = 0;
+                mouseSentPackets();
                 lastMouseButtons = mouseButtons;
-            }
+            } else if(doMouse)
+                mouseSentPackets();
             int sampleRate = mouseSampleRate;
             if(sampleRate < 10) sampleRate = 10;
             if(sampleRate > 200) sampleRate = 200;
@@ -1142,7 +1190,8 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
                 throw new IOException("Invalid MOUSEBUTTON event");
             }
 
-            if(level == EventRecorder.EVENT_STATE_EFFECT || level == EventRecorder.EVENT_STATE_EFFECT_FUTURE) {
+            if(level == EventRecorder.EVENT_STATE_EFFECT || level == EventRecorder.EVENT_STATE_EFFECT_FUTURE ||
+                level == EventRecorder.EVENT_TIMED) {
                 mouseButtonStatus = mouseButtonStatus ^ (1 << scancode);
                 sendMouseButtonsChange(mouseButtonStatus);
             }
@@ -1297,7 +1346,6 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
         if(button < 0 || button > 4)
             throw new IOException("Invalid mouse button number");
         recorder.addEvent(-1, getClass(), new String[]{"MOUSEBUTTON", scanS});
-        mouseButtonStatus = mouseButtonStatus ^ (1 << button);
     }
 
     public void sendXMouseMotion(int amount) throws IOException
@@ -1332,7 +1380,7 @@ public class Keyboard extends AbstractHardwareComponent implements IOPortCapable
 
     public int getMouseButtonStatus()
     {
-        return mouseButtonStatus;
+        return mouseButtons;
     }
 
     public int getMouseXPendingMotion()

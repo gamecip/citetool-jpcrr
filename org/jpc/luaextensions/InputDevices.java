@@ -33,6 +33,7 @@ import mnj.lua.*;
 
 import org.jpc.modules.Joystick;
 import org.jpc.emulator.peripheral.Keyboard;
+import org.jpc.modules.TurboButton;
 
 import org.jpc.plugins.LuaPlugin;
 
@@ -71,6 +72,26 @@ public class InputDevices extends LuaPlugin.LuaResource
         Keyboard key = (Keyboard)plugin.getComponent(Keyboard.class);
         if(key != null)
             l.pushBoolean(key.getKeyStatus((byte)l.checkNumber(1)));
+        else
+            l.pushBoolean(false);
+        return 1;
+    }
+
+    public static int luaCB_turbo_active(Lua l, LuaPlugin plugin)
+    {
+        TurboButton key = (TurboButton)plugin.getComponent(TurboButton.class);
+        if(key != null)
+            l.pushBoolean(key.turboState(false));
+        else
+            l.pushBoolean(false);
+        return 1;
+    }
+
+    public static int luaCB_turbo_active_edge(Lua l, LuaPlugin plugin)
+    {
+        TurboButton key = (TurboButton)plugin.getComponent(TurboButton.class);
+        if(key != null)
+            l.pushBoolean(key.turboState(true));
         else
             l.pushBoolean(false);
         return 1;

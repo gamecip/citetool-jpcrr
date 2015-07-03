@@ -617,6 +617,8 @@ public class LazyCodeBlockMemory extends AbstractMemory {
         if(getByte(offset) == data)
             return;
         try {
+            if(page0Hack != null && (offset == 0x41A || offset == 0x41C))
+                page0Hack.doPotentialTrap(TraceTrap.TRACE_STOP_BIOS_KBD);
             buffer[offset] = data;
         } catch (NullPointerException e) {
             allocateBuffer();

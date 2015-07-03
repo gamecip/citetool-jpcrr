@@ -64,7 +64,7 @@ public class Status extends LuaPlugin.LuaResource
         if(clk != null)
             l.setTable(tab, "time", new Double(clk.getTime()));
         l.setTable(tab, "resolution_x", new Double(plugin.getXResolution()));
-        l.setTable(tab, "resolution_y", new Double(plugin.getXResolution()));
+        l.setTable(tab, "resolution_y", new Double(plugin.getYResolution()));
         DisplayController dc = ((DisplayController)plugin.getComponent(DisplayController.class));
         if(dc != null)
             l.setTable(tab, "frame", new Double(dc.getFrameNumber()));

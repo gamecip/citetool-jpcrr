@@ -91,11 +91,13 @@ public class PCRunner implements Plugin
             long addr = address.longValue();
             long _size = size.intValue();
             long ret = 0;
+            boolean a20WasDisabled;
             PhysicalAddressSpace addrSpace;
             if(addr < 0 || addr > 0xFFFFFFFFL || (_size != 1 && _size != 2 && _size != 4))
                 return;
-
             addrSpace = (PhysicalAddressSpace)pc.getComponent(PhysicalAddressSpace.class);
+            a20WasDisabled = !addrSpace.getGateA20State();
+            if(a20WasDisabled) addrSpace.setGateA20State(true);
             if(_size == 1)
                 ret = (long)addrSpace.getByte((int)addr) & 0xFF;
             else if(_size == 2)
@@ -103,6 +105,7 @@ public class PCRunner implements Plugin
             else if(_size == 4)
                 ret = (long)addrSpace.getDoubleWord((int)addr) & 0xFFFFFFFFL;
 
+            if(a20WasDisabled) addrSpace.setGateA20State(false);
             vPluginManager.returnValue(ret);
         }
     }

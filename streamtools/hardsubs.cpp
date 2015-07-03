@@ -195,7 +195,7 @@ image_frame_rgbx* hardsub_render_settings::operator()()
 	render_halo(total_width, total_height, buffer1, halo_thickness);
 
 	//Make full color buffer from indexed buffer.
-	uint v0 = 0, v1 = 0, v2 = 0;
+	uint32_t v0 = 0, v1 = 0, v2 = 0;
 	unsigned char* data = img->get_pixels();
 	for(uint32_t y = 0; y < total_height; y++)
 		for(uint32_t x = 0; x < total_width; x++)

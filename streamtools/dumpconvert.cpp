@@ -102,6 +102,10 @@ int real_main(int argc, char** argv)
 					return 1;
 				}
 				params.rate_num = 1;
+			} else if(isstringprefix(arg, "--audio-rate=")) {
+				std::string value = settingvalue(arg);
+				char* x;
+				params.audio_rate = strtoul(value.c_str(), &x, 10);
 			} else if(isstringprefix(arg, "--audio-delay=")) {
 				std::string value = settingvalue(arg);
 				if(value.length() && value[0] == '-')
@@ -144,6 +148,8 @@ int real_main(int argc, char** argv)
 		std::cout << "--output-<type>=<file>[,<parameters>]" << std::endl;
 		std::cout << "\tSend <type> output to <file>." << std::endl;
 		std::cout << "\tSupported types: " << get_output_driver_string() << std::endl;
+		std::cout << "--audio-rate=<rate>" << std::endl;
+		std::cout << "\tSet audio rate to <rate>. Default 44100." << std::endl;
 		std::cout << "--audio-delay=<delay>" << std::endl;
 		std::cout << "\tSet audio delay to <delay> (may be negative). Default 0." << std::endl;
 		std::cout << "--subtitle-delay=<delay>" << std::endl;

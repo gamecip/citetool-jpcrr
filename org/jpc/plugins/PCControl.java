@@ -50,6 +50,8 @@ import org.jpc.emulator.DisplayController;
 import org.jpc.emulator.memory.PhysicalAddressSpace;
 import org.jpc.emulator.pci.peripheral.VGACard;
 import org.jpc.emulator.StatusDumper;
+import org.jpc.emulator.processor.Processor;
+import org.jpc.emulator.processor.Segment;
 import org.jpc.emulator.Clock;
 import org.jpc.emulator.VGADigitalOut;
 import org.jpc.diskimages.BlockDevice;
@@ -121,6 +123,7 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
     private volatile boolean running;
     private volatile boolean waiting;
     private boolean uncompressedSave;
+    private volatile boolean needRepaint;
     private static final long[] stopTime;
     private static final String[] stopLabel;
     private volatile long imminentTrapTime;
@@ -137,6 +140,7 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
     private volatile Runnable taskToDo;
     private volatile String taskLabel;
     private boolean cycleDone;
+    private boolean inReadonlyMode;
     private Map<String, Class<?>> debugInClass;
     private Map<String, Boolean> debugState;
 
@@ -240,8 +244,6 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
 
     public void reconnect(PC pc)
     {
-        this.pc = pc;
-        currentProject.pc = pc;
         panel.setPC(pc);
         pcStopping();  //Do the equivalent effects.
         updateStatusBar();
@@ -319,7 +321,7 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
             profile |= PROFILE_NO_PC;
         if(currentProject != null && currentProject.events != null);
             profile |= PROFILE_EVENTS;
-        if(pc != null && pc.getCDROMIndex() >= 0)
+        if(pc.getCDROMIndex() >= 0)
             profile |= PROFILE_CDROM;
 
         menuManager.setProfile(profile);
@@ -437,6 +439,10 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
                 taskToDo.run();
                 taskToDo = null;
                 updateStatusBar();
+                if(needRepaint) {
+                   doCycle(pc);
+                   needRepaint = false;
+                }
                 continue;
             }
 
@@ -451,12 +457,12 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
                         stopNoWait();
                     else
                         SwingUtilities.invokeAndWait(new Thread() { public void run() { stopNoWait(); }});
-                    running = false;
                     doCycle(pc);
+                    running = false;
                 }
             } catch (Exception e) {
-                running = false;
                 doCycle(pc);
+                running = false;
                 errorDialog(e, "Hardware emulator internal error", window, "Dismiss");
                 try {
                     if(shuttingDown)
@@ -506,6 +512,16 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
     {
         String ID = (currentProject != null && currentProject.projectID != null) ? currentProject.projectID : "";
         return name.replaceAll("\\|", ID);
+    }
+
+    public void eci_readonly_mode()
+    {
+        setReadonlyMode(true);
+    }
+
+    public void eci_readwrite_mode()
+    {
+        setReadonlyMode(false);
     }
 
     public boolean eci_state_save(String filename)
@@ -657,16 +673,88 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
             long _size = size.intValue();
             long ret = 0;
             PhysicalAddressSpace addrSpace;
+            boolean a20WasDisabled;
             if(addr < 0 || addr > 0xFFFFFFFFL || (_size != 1 && _size != 2 && _size != 4))
                 return;
 
             addrSpace = (PhysicalAddressSpace)currentProject.pc.getComponent(PhysicalAddressSpace.class);
+            a20WasDisabled = !addrSpace.getGateA20State();
+            if(a20WasDisabled) addrSpace.setGateA20State(true);
             if(_size == 1)
                 ret = (long)addrSpace.getByte((int)addr) & 0xFF;
             else if(_size == 2)
                 ret = (long)addrSpace.getWord((int)addr) & 0xFFFF;
             else if(_size == 4)
                 ret = (long)addrSpace.getDoubleWord((int)addr) & 0xFFFFFFFFL;
+
+            if(a20WasDisabled) addrSpace.setGateA20State(false);
+            vPluginManager.returnValue(ret);
+        }
+    }
+
+    private void dumpSegment(Segment seg, String prefix)
+    {
+        System.out.println(prefix + ": selector=" + Integer.toHexString(seg.getSelector()) + " base=" +
+            Integer.toHexString(seg.getBase()) + " limit=" + Integer.toHexString(seg.getLimit()));
+    }
+
+    private void dumpRegister(int val, String prefix)
+    {
+        System.out.println(prefix + ": " + Integer.toHexString(val));
+    }
+
+    public void eci_cpu_mode()
+    {
+        if(currentProject.pc != null) {
+            Processor cpu = null;;
+            cpu = (Processor)currentProject.pc.getComponent(Processor.class);
+            dumpSegment(cpu.cs, "CS");
+            dumpSegment(cpu.ds, "DS");
+            dumpSegment(cpu.es, "ES");
+            dumpSegment(cpu.fs, "FS");
+            dumpSegment(cpu.gs, "GS");
+            dumpSegment(cpu.ss, "SS");
+            dumpRegister(cpu.eax, "EAX");
+            dumpRegister(cpu.ebx, "EBX");
+            dumpRegister(cpu.ecx, "ECX");
+            dumpRegister(cpu.edx, "EDX");
+            dumpRegister(cpu.ebp, "EBP");
+            dumpRegister(cpu.esp, "ESP");
+            dumpRegister(cpu.esi, "ESI");
+            dumpRegister(cpu.edi, "EDI");
+            dumpRegister(cpu.eip, "EIP");
+            dumpRegister(cpu.getCR0(), "CR0");
+            dumpRegister(cpu.getEFlags(), "EFLAGS");
+        }
+    }
+
+    public void eci_memory_read_seg(Integer base, Long address, Integer size)
+    {
+        if(currentProject.pc != null) {
+            long addr = address.longValue();
+            long _size = size.intValue();
+            long ret = 0;
+            Processor cpu = null;;
+            Segment seg = null;
+            boolean a20WasDisabled;
+            if(addr < 0 || addr > 0xFFFFFFFFL || (_size != 1 && _size != 2 && _size != 4))
+                return;
+
+            cpu = (Processor)currentProject.pc.getComponent(Processor.class);
+            if(base == 0) seg = cpu.cs;
+            if(base == 1) seg = cpu.ds;
+            if(base == 2) seg = cpu.es;
+            if(base == 3) seg = cpu.fs;
+            if(base == 4) seg = cpu.gs;
+            if(base == 5) seg = cpu.ss;
+            if(seg == null)
+                return;
+            if(_size == 1)
+                ret = (long)seg.getByte((int)addr) & 0xFF;
+            else if(_size == 2)
+                ret = (long)seg.getWord((int)addr) & 0xFFFF;
+            else if(_size == 4)
+                ret = (long)seg.getDoubleWord((int)addr) & 0xFFFFFFFFL;
 
             vPluginManager.returnValue(ret);
         }
@@ -679,16 +767,20 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
             long _size = size.intValue();
             long _value = value.longValue();
             PhysicalAddressSpace addrSpace;
+            boolean a20WasDisabled;
             if(addr < 0 || addr > 0xFFFFFFFFL || (_size != 1 && _size != 2 && _size != 4))
                 return;
 
             addrSpace = (PhysicalAddressSpace)currentProject.pc.getComponent(PhysicalAddressSpace.class);
+            a20WasDisabled = !addrSpace.getGateA20State();
+            if(a20WasDisabled) addrSpace.setGateA20State(true);
             if(_size == 1)
                 addrSpace.setByte((int)addr, (byte)_value);
             else if(_size == 2)
                 addrSpace.setWord((int)addr, (short)_value);
             else if(_size == 4)
                 addrSpace.setDoubleWord((int)addr, (int)_value);
+            if(a20WasDisabled) addrSpace.setGateA20State(false);
         }
     }
 
@@ -696,6 +788,7 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
     {
         this(manager);
 
+        needRepaint = false;
         UTFInputLineStream file = null;
         Map<String, String> params = parseStringToComponents(args);
         Set<String> used = new HashSet<String>();
@@ -808,8 +901,8 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
             PROFILE_HAVE_PC | PROFILE_STOPPED);
         menuManager.addMenuItem("Snapshot→RAM Dump→Binary", this, "menuRAMDump", new Object[]{new Boolean(true)},
             PROFILE_HAVE_PC | PROFILE_STOPPED);
-        menuManager.addMenuItem("Snapshot→Truncate Event Stream", this, "menuTruncate", null,
-            PROFILE_STOPPED | PROFILE_EVENTS);
+        menuManager.addSelectableMenuItem("Snapshot→Readonly Mode", this, "menuTruncate", null, false,
+            PROFILE_EVENTS);
 
         for(int i = 0; i < stopLabel.length; i++) {
             menuManager.addSelectableMenuItem("Breakpoints→Timed Stops→" + stopLabel[i], this, "menuTimedStop",
@@ -941,7 +1034,6 @@ e.printStackTrace();
     private void updateDebug()
     {
          setDebugOptions();
-        if(pc == null) return;
          for(HardwareComponent c : pc.allComponents()) {
              Class<?> cl = c.getClass();
              for(Method m : cl.getDeclaredMethods()) {
@@ -980,6 +1072,8 @@ e.printStackTrace();
                 text1 = text1 + ", resolution: <No valid signal>";
             if(currentProject.events.isAtMovieEnd())
                 text1 = text1 + " (At movie end)";
+            if(currentProject.events.getReadonlyMode())
+                text1 = text1 + " (Readonly)";
         } else if(taskToDo != null)
             text1 = taskLabel;
         else
@@ -1231,9 +1325,19 @@ e.printStackTrace();
         setTask(new ImageDumpTask(((Integer)args[0]).intValue()), IMAGEDUMP_LABEL);
     }
 
+    private void setReadonlyMode(boolean newstate)
+    {
+        if(currentProject != null && currentProject.events != null)
+            currentProject.events.setReadonlyMode(newstate);
+        menuManager.setSelected("Snapshot→Readonly Mode", newstate);
+        inReadonlyMode = newstate;
+        updateStatusBar();
+    }
+
     public void menuTruncate(String i, Object[] args)
     {
-        currentProject.events.truncateEventStream();
+        boolean newValue = !inReadonlyMode;
+        setReadonlyMode(newValue);
     }
 
     public void menuChangeDisk(String i, Object[] args)
@@ -1296,7 +1400,6 @@ e.printStackTrace();
 
     protected synchronized void stopNoWait()
     {
-        running = false;
         vPluginManager.pcStopped();
         Clock sysClock = (Clock)pc.getComponent(Clock.class);
         System.err.println("Notice: PC emulation stopped (at time sequence value " +
@@ -1426,7 +1529,7 @@ e.printStackTrace();
             if(caught == null) {
                 try {
                     connectPC(pc = currentProject.pc);
-                    doCycle(pc);
+                    needRepaint = true;
                     System.err.println("Informational: Loadstate done on "+chosen.getAbsolutePath());
                 } catch(Exception e) {
                     caught = e;
@@ -1461,7 +1564,13 @@ e.printStackTrace();
 
                 currentProject = fullStatus;
 
+                /* Force readonly mode if needed, otherwise truncate. */
+                boolean wasReadonly = inReadonlyMode;
+                setReadonlyMode(true);
+                if(_mode == MODE_NORMAL && !wasReadonly)
+                    setReadonlyMode(false);
                 reader.close();
+
                 long times2 = System.currentTimeMillis();
                 System.err.println("Informational: Loadstate complete (" + (times2 - times1) + "ms).");
             } catch(Exception e) {
@@ -1470,32 +1579,12 @@ e.printStackTrace();
         }
     }
 
-    private synchronized void doCycleDedicatedThread(PC _pc)
-    {
-        if(_pc == null) {
-            cycleDone = true;
-            return;
-        }
-        DisplayController dc = (DisplayController)_pc.getComponent(DisplayController.class);
-        dc.getOutputDevice().holdOutput(_pc.getTime());
-        cycleDone = true;
-        notifyAll();
-    }
-
     private void doCycle(PC _pc)
     {
-        final PC _xpc = _pc;
-        cycleDone = false;
-        (new Thread(new Runnable() { public void run() { doCycleDedicatedThread(_xpc); }}, "VGA output cycle thread")).start();
-        while(cycleDone)
-            try {
-                synchronized(this) {
-                    if(cycleDone)
-                        break;
-                    wait();
-                }
-            } catch(Exception e) {
-            }
+        if(_pc == null)
+            return;
+        DisplayController dc = (DisplayController)_pc.getComponent(DisplayController.class);
+        dc.getOutputDevice().holdOutput(_pc.getTime());
     }
 
     private class SaveStateTask extends AsyncGUITask
@@ -1604,12 +1693,17 @@ e.printStackTrace();
                 return;
 
             try {
-                OutputStream outb = new BufferedOutputStream(new FileOutputStream(chosen));
+		FileOutputStream fout = new FileOutputStream(chosen);
+                OutputStream outb = new BufferedOutputStream(fout);
                 PrintStream out = new PrintStream(outb, false, "UTF-8");
                 StatusDumper sd = new StatusDumper(out);
                 pc.dumpStatus(sd);
                 out.flush();
                 outb.flush();
+		fout.flush();
+		out.close();
+		outb.close();
+		fout.close();
                 System.err.println("Informational: Dumped " + sd.dumpedObjects() + " objects");
             } catch(Exception e) {
                  caught = e;
@@ -1664,7 +1758,8 @@ e.printStackTrace();
                 return;
 
             try {
-                OutputStream outb = new BufferedOutputStream(new FileOutputStream(chosen));
+		FileOutputStream fout = new FileOutputStream(chosen);
+                OutputStream outb = new BufferedOutputStream(fout);
                 byte[] pagebuf = new byte[4096];
                 PhysicalAddressSpace addr = (PhysicalAddressSpace)pc.getComponent(PhysicalAddressSpace.class);
                 int lowBound = addr.findFirstRAMPage(0);
@@ -1681,6 +1776,9 @@ e.printStackTrace();
                     lowBound = addr.findFirstRAMPage(++lowBound);
                 }
                 outb.flush();
+		fout.flush();
+		outb.close();
+		fout.close();
                 System.err.println("Informational: Dumped machine RAM (" + highBound + " pages examined, " +
                     present + " pages present).");
             } catch(Exception e) {

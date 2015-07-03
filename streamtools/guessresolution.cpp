@@ -37,6 +37,7 @@ int real_main(int argc, char** argv)
 				current_width = ((uint32_t)p->rp_payload[0] << 8) | p->rp_payload[1];
 				current_height = ((uint32_t)p->rp_payload[2] << 8) | p->rp_payload[3];
 			}
+			delete p;
 		}
 	}
 

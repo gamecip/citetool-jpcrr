@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Cleaning up..."
-find -name "*.class" -exec rm {} \;
+find . -name "*.class" -exec rm {} \;
 echo "Compiling exception list processor..."
 javac -Xlint:unchecked -encoding utf-8 exceptiondefs/ExceptionDefProcessor.java || exit 1
 echo "Transforming exceptions list..."

@@ -1,3 +1,6 @@
+#ifdef main
+#include <SDL_main.h>
+#endif
 #include <stdexcept>
 #include <iostream>
 

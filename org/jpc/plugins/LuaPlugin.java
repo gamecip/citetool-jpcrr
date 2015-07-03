@@ -736,70 +736,70 @@ public class LuaPlugin implements ActionListener, Plugin
     class VGARetraceWaiter extends Thread
     {
         private volatile boolean active;
-        private volatile boolean reactivateFlag;
         private volatile boolean deactivateFlag;
 
         public VGARetraceWaiter()
         {
             super("VGA Lua Trace waiting thread");
+            active = false;
+            deactivateFlag = false;
         }
 
         public void run()
         {
-            while(true) {
-                synchronized(this) {
-                    if(!active || screenOut == null) {
-                        //We are in quescent state. Wait for reactivation.
-                        active = false;
-                        while(!reactivateFlag)
+            while(true)
+                if(active && screenOut != null) {
+                    boolean r = screenOut.aquire();
+                    if(r) {
+                        ownsVGALock = true;
+                        synchronized(this) {
+                            queueEvent("lock", null);
+                            active = false;
+                            deactivateFlag = false;
+                            notifyAll();
+                        }
+                    } else if(deactivateFlag) {
+                        synchronized(this) {
+                            active = false;
+                            deactivateFlag = false;
+                            notifyAll();
+                        }
+                    }
+                } else {
+                    synchronized(this) {
+                        while(!active || screenOut == null) {
                             try {
                                 wait();
                             } catch(Exception e) {
                             }
-                        active = true;
-                        reactivateFlag = false;
-                    } else {
-                        boolean r = screenOut.aquire();
-                        if(r) {
-                            ownsVGALock = true;
-                            queueEvent("lock", null);
-                            active = false;
-                        }
-                        if(deactivateFlag) {
-                            active = false;
-                            deactivateFlag = false;
+                            if(deactivateFlag) {
+                                active = false;
+                                deactivateFlag = false;
+                                notifyAll();
+                            }
                         }
                     }
                 }
-            }
         }
 
         public void deactivate()
         {
-            if(!active)
-                return;
             deactivateFlag = true;
             interrupt();
-            while(true) {
-                synchronized(this) {
-                    if(!active)
-                        return;
+            synchronized(this) {
+                notifyAll();
+                while(active)
                     try {
                         wait();
                     } catch(Exception e) {
                     }
-                }
             }
         }
 
-        public void reactivate()
+        public synchronized void reactivate()
         {
-            if(active)
-                return;
-            reactivateFlag = true;
-            synchronized(this) {
-                notifyAll();
-            }
+            active = true;
+            notifyAll();
         }
     }
 

@@ -82,6 +82,14 @@ image_frame_rgbx& framerate_reducer_temporalantialias::pull(uint64_t ts)
 	return *result;
 }
 
+static double integrate_sensitivity(double fraction, double factor)
+{
+	if(fraction < 0.5)
+		return 0.5 * pow(2 * fraction, factor);
+	else
+		return 1 - 0.5 * pow(2 - 2 * fraction, factor);
+}
+
 void framerate_reducer_temporalantialias::compute_frame_weights(uint64_t ts, float* weights)
 {
 	size_t k = 0;
@@ -101,7 +109,9 @@ void framerate_reducer_temporalantialias::compute_frame_weights(uint64_t ts, flo
 		double end_fraction = 1 - (end_ts - last_ts) / tdiv;
 		start_fraction = (start_fraction < 0) ? 0 : (start_fraction > 1) ? 1 : start_fraction;
 		end_fraction = (end_fraction < 0) ? 0 : (end_fraction > 1) ? 1 : end_fraction;
-		weights[k] = pow(start_fraction, factor) - pow(end_fraction, factor);
+
+		weights[k] = integrate_sensitivity(start_fraction, factor) - integrate_sensitivity(end_fraction,
+			factor);
 		//std::cerr << "Weight for subframe #" << k << ": " << weights[k] << "." << std::endl;
 	}
 }

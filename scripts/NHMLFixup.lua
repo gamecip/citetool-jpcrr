@@ -1,16 +1,24 @@
 #!/usr/bin/env lua
 ----------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------
--- NHMLFixup v10 by Ilari (2011-08-16).
+-- NHMLFixup v12 by Ilari (2012-04-09).
 -- Update timecodes in NHML Audio/Video track timing to conform to given MKV v2 timecodes file.
 -- Syntax: NHMLFixup <video-nhml-file> <audio-nhml-file> <mkv-timecodes-file> [delay=<delay>] [tvaspect|widescreen]
+--
 -- <delay> is number of milliseconds to delay the video (in order to compensate for audio codec delay, reportedly
 -- does not work right with some demuxers).
 -- The 'tvaspect' option makes video track to be automatically adjusted to '4:3' aspect ratio.
 -- The 'widescreen' option makes video track to be automatically adjusted to '16:9' aspect ratio.
+-- <frame> is frame to force overflow correction on.
+--
+-- Version v12 by Ilari (2012-04-09):
+--	- Complain about CTSOffset errors.
+--
+-- Version v11 by Ilari (2011-12-18):
+--	- Add option to force overflow correction on given frame.
 --
 -- Version v10 by Ilari (2011-08-16):
---	Work around MP4Box bug resulting in negative CTSOffset.
+--	- Work around MP4Box bug resulting in negative CTSOffset.
 --
 -- Version v9 by Ilari (2011-04-01):
 --	- Support widescreen mode ("widescreen").
@@ -188,10 +196,8 @@ translate_NHML_TS_in = function(sampledata, default_dDTS)
 			sampledata[i].DTS = dts + default_dDTS;
 		end
 		dts = sampledata[i].DTS;
-		if sampledata[i].CTSOffset and sampledata[i].CTSOffset < 0 then
-			--Work around MP4Box bug.
-			print("WARNING: Negative CTSOffset, assuming buggy MP4Box");
-			sampledata[i].CTSOffset = sampledata[i].CTSOffset + 4294967296;
+		if (sampledata[i].CTSOffset and sampledata[i].CTSOffset < 0) then
+			error("Invalid CTSOffset " .. tostring(sampledata[i].CTSOffset));
 		end
 		if sampledata[i].CTSOffset then
 			sampledata[i].CTS = sampledata[i].CTSOffset + sampledata[i].DTS;
