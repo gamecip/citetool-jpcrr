@@ -20,3 +20,5 @@ jpcrr-microcode*
 /org/jpc/Revision.java
 .idea
 *.iml
+Stack*
+.DS_Store

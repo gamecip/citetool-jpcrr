@@ -7,9 +7,11 @@ package org.jpc.plugins;
 //From JPC-RR
 import static org.jpc.Misc.parseStringToComponents;
 import org.jpc.emulator.PC;
+import org.jpc.jrsr.JRSRArchiveReader;
 import org.jpc.pluginsbase.Plugin;
 import org.jpc.pluginsbase.Plugins;
 import org.jpc.Revision;
+import static org.jpc.Misc.errorDialog;
 
 //For encoding
 import org.json.simple.JSONObject;
@@ -66,7 +68,7 @@ public class CiteTool implements Plugin {
         )
         {
             String inputLine, outputLine;
-            CiteToolProtocol ctp = new CiteToolProtocol();
+            CiteToolProtocol ctp = new CiteToolProtocol(this);
             outputLine = ctp.processInput(null);
             out.println(outputLine);
             out.println(ctp.waitingForRequest);
@@ -86,6 +88,13 @@ public class CiteTool implements Plugin {
             System.out.println("Exception caught when trying to listen on port " + port + " or listening for a connection");
             System.out.println(e.getMessage());
         }
+    }
+
+    public synchronized void connectPC(PC pc)
+    {
+        pluginManager.reconnect(pc);
+        this.pc = pc;
+        notifyAll();
     }
 
     private class CiteToolProtocol
@@ -109,19 +118,71 @@ public class CiteTool implements Plugin {
         private final String infoRequest = "info";
         private final String waitingForRequest = "ready";
 
+        private CiteTool citeTool;
+        private String fileName;
+        private String submovie;
+        private boolean shutDown;
+        private boolean shutDownRequest;
+        private long imminentTrapTime;
+
+
+        public CiteToolProtocol(CiteTool citeTool){
+            this.citeTool = citeTool;
+        }
+
         public String processInput(String inputString)
         {
             String outputString = null;
+            Exception caught = null;
 
             if(initConnect)
             {
                 //Generate system status information
                 outputString = generateSourceInfo();
                 initConnect = false;
+            }else{
+                if(inputString.equals("test_load")){
+                    PC.PCFullStatus fullStatus = null;
+                    try {
+                        System.err.println("Informational: Loading a snapshot of JPC-RR");
+                        JRSRArchiveReader reader = new JRSRArchiveReader("/Users/erickaltman/dev/projects/gamecip/emulators/citetool-jpcrr/movies/keen4_test_after_movie_load");
+                        fullStatus = PC.loadSavestate(reader, false, false, null, submovie);
+                        citeTool.pc = fullStatus.pc;
+                        reader.close();
+                        fullStatus.events.setPCRunStatus(true);
+                    } catch(Exception e) {
+                        caught = e;
+                    }
+
+                    if(caught == null) {
+                        try {
+                            citeTool.connectPC(pc);
+                            System.err.println("Informational: Loadstate done");
+                        } catch(Exception e) {
+                            caught = e;
+                        }
+                    }
+
+                    if(caught != null) {
+                        System.err.println("Critical: Savestate load failed.");
+                        errorDialog(caught, "Failed to load savestate", null, "Quit");
+                        shutDown = true;
+                        citeTool.pluginManager.shutdownEmulator();
+                        outputString = "There was an error";
+                        return outputString;
+                    }
+
+                    //citeTool.pluginManager.pcStarted();
+                    //citeTool.pc.start();
+                    //citeTool.pc.refreshGameinfo(fullStatus);
+                    citeTool.pluginManager.invokeExternalCommandSynchronous("pc-start", new String[]{});
+                }
+                outputString = "OK";
             }
 
             return outputString;
         }
+
 
         public boolean available()
         {

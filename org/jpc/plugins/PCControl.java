@@ -240,6 +240,8 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
 
     public void reconnect(PC pc)
     {
+        this.pc = pc;
+        currentProject.pc = pc;
         panel.setPC(pc);
         pcStopping();  //Do the equivalent effects.
         updateStatusBar();
@@ -317,7 +319,7 @@ public class PCControl implements Plugin, PCMonitorPanelEmbedder
             profile |= PROFILE_NO_PC;
         if(currentProject != null && currentProject.events != null);
             profile |= PROFILE_EVENTS;
-        if(pc.getCDROMIndex() >= 0)
+        if(pc != null && pc.getCDROMIndex() >= 0)
             profile |= PROFILE_CDROM;
 
         menuManager.setProfile(profile);
@@ -939,6 +941,7 @@ e.printStackTrace();
     private void updateDebug()
     {
          setDebugOptions();
+        if(pc == null) return;
          for(HardwareComponent c : pc.allComponents()) {
              Class<?> cl = c.getClass();
              for(Method m : cl.getDeclaredMethods()) {
