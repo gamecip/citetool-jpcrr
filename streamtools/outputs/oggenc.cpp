@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <fcntl.h>
 
 namespace
 {
@@ -27,9 +28,10 @@ namespace
 			const audio_settings& a = get_audio_settings();
 
 			std::stringstream commandline;
-			commandline << "oggenc -r -R " << a.get_rate() << " ";
-			commandline << expand_arguments_common(options, "--", "=");
-			commandline << "-o " << filename << " -";
+			std::string executable = "oggenc";
+			std::string x = expand_arguments_common(options, "--", "=", executable);
+			commandline << executable << " -r -R " << a.get_rate() << " ";
+			commandline << x << " -o " << filename << " -";
 			std::string s = commandline.str();
 			out = popen(s.c_str(), "w");
 			if(!out) {
@@ -37,6 +39,9 @@ namespace
 				str << "Can't run oggenc (" << s << ")";
 				throw std::runtime_error(str.str());
 			}
+#if defined(_WIN32) || defined(_WIN64)
+			setmode(fileno(out), O_BINARY);
+#endif
 		}
 
 		void audio_callback(short left, short right)

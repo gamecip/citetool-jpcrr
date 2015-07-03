@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <sstream>
+#include <fcntl.h>
 
 namespace
 {
@@ -27,10 +28,11 @@ namespace
 			const audio_settings& a = get_audio_settings();
 
 			std::stringstream commandline;
-			commandline << "flac --force-raw-format --endian=little --channels=2 --bps=16 " <<
-				"--sign=signed --sample-rate=" << a.get_rate() << " ";
-			commandline << expand_arguments_common(options, "--", "=");
-			commandline << "-o " << filename << " -";
+			std::string executable = "flac";
+			std::string x = expand_arguments_common(options, "--", "=", executable);
+			commandline << executable <<" --force-raw-format --endian=little " << 
+				"--channels=2 --bps=16 --sign=signed --sample-rate=" <<
+				a.get_rate() << " " << x << " -o " << filename << " -";
 			std::string s = commandline.str();
 			out = popen(s.c_str(), "w");
 			if(!out) {
@@ -38,6 +40,9 @@ namespace
 				str << "Can't run flac (" << s << ")";
 				throw std::runtime_error(str.str());
 			}
+#if defined(_WIN32) || defined(_WIN64)
+			setmode(fileno(out), O_BINARY);
+#endif
 		}
 
 		void audio_callback(short left, short right)

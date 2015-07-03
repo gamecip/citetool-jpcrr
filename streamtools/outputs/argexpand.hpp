@@ -3,6 +3,7 @@
 
 #include <string>
 
-std::string expand_arguments_common(std::string spec, std::string commaexpand, std::string equalsexpand);
+std::string expand_arguments_common(std::string spec, std::string commaexpand, std::string equalsexpand,
+	std::string& executable);
 
 #endif

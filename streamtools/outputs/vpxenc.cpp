@@ -11,17 +11,17 @@
 
 namespace
 {
-	class output_driver_ivfenc : public output_driver
+	class output_driver_vpxenc : public output_driver
 	{
 	public:
-		output_driver_ivfenc(const std::string& _filename, const std::string& _options)
+		output_driver_vpxenc(const std::string& _filename, const std::string& _options)
 		{
 			filename = _filename;
 			options = _options;
-			set_video_callback(make_bound_method(*this, &output_driver_ivfenc::video_callback));
+			set_video_callback(make_bound_method(*this, &output_driver_vpxenc::video_callback));
 		}
 
-		~output_driver_ivfenc()
+		~output_driver_vpxenc()
 		{
 			pclose(out);
 		}
@@ -34,17 +34,18 @@ namespace
 			height = v.get_height();
 
 			std::stringstream commandline;
-			std::string executable = "ivfenc";
+			std::string executable = "vpxenc";
 			std::string x = expand_arguments_common(options, "--", "=", executable);
 			commandline << executable << " --width=" << v.get_width() << " --height=" << v.get_height() << " ";
 			if(v.get_rate_denum())
-				commandline << "--timebase " << v.get_rate_denum() << "/" << v.get_rate_num() << " ";
-			commandline << x << " - " << filename;
+				commandline << "--fps " << v.get_rate_num() << "/" << v.get_rate_denum() << " ";
+			commandline << x << " - -o " << filename;
 			std::string s = commandline.str();
+			std::cerr << "Invoking: " << s << std::endl;
 			out = popen(s.c_str(), "w");
 			if(!out) {
 				std::stringstream str;
-				str << "Can't run ivfenc (" << s << ")";
+				str << "Can't run vpxenc (" << s << ")";
 				throw std::runtime_error(str.str());
 			}
 #if defined(_WIN32) || defined(_WIN64)
@@ -65,17 +66,17 @@ namespace
 		uint32_t height;
 	};
 
-	class output_driver_ivfenc_factory : output_driver_factory
+	class output_driver_vpxenc_factory : output_driver_factory
 	{
 	public:
-		output_driver_ivfenc_factory()
-			: output_driver_factory("ivfenc")
+		output_driver_vpxenc_factory()
+			: output_driver_factory("vpxenc")
 		{
 		}
 
 		output_driver& make(const std::string& type, const std::string& name, const std::string& parameters)
 		{
-			return *new output_driver_ivfenc(name, parameters);
+			return *new output_driver_vpxenc(name, parameters);
 		}
 	} factory;
 }
