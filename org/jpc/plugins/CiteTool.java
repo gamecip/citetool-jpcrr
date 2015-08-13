@@ -45,12 +45,12 @@ public class CiteTool implements Plugin {
 
     public void pcStarting()
     {
-        //Nothing here yet.
+        pcRunStatus = true;
     }
 
     public void pcStopping()
     {
-        //Nothing here yet.
+        pcRunStatus = false;
     }
 
     public boolean systemShutdown()
@@ -68,7 +68,7 @@ public class CiteTool implements Plugin {
         )
         {
             String inputLine, outputLine;
-            CiteToolProtocol ctp = new CiteToolProtocol(this);
+            CiteToolProtocol ctp = new CiteToolProtocol();
             outputLine = ctp.processInput(null);
             out.println(outputLine);
             out.println(ctp.waitingForRequest);
@@ -118,17 +118,12 @@ public class CiteTool implements Plugin {
         private final String infoRequest = "info";
         private final String waitingForRequest = "ready";
 
-        private CiteTool citeTool;
         private String fileName;
         private String submovie;
         private boolean shutDown;
         private boolean shutDownRequest;
         private long imminentTrapTime;
 
-
-        public CiteToolProtocol(CiteTool citeTool){
-            this.citeTool = citeTool;
-        }
 
         public String processInput(String inputString)
         {
@@ -147,7 +142,7 @@ public class CiteTool implements Plugin {
                         System.err.println("Informational: Loading a snapshot of JPC-RR");
                         JRSRArchiveReader reader = new JRSRArchiveReader("/Users/erickaltman/dev/projects/gamecip/emulators/citetool-jpcrr/movies/keen4_test_after_movie_load");
                         fullStatus = PC.loadSavestate(reader, false, false, null, submovie);
-                        citeTool.pc = fullStatus.pc;
+                        pc = fullStatus.pc;
                         reader.close();
                         fullStatus.events.setPCRunStatus(true);
                     } catch(Exception e) {
@@ -156,7 +151,7 @@ public class CiteTool implements Plugin {
 
                     if(caught == null) {
                         try {
-                            citeTool.connectPC(pc);
+                            connectPC(pc);
                             System.err.println("Informational: Loadstate done");
                         } catch(Exception e) {
                             caught = e;
@@ -167,15 +162,14 @@ public class CiteTool implements Plugin {
                         System.err.println("Critical: Savestate load failed.");
                         errorDialog(caught, "Failed to load savestate", null, "Quit");
                         shutDown = true;
-                        citeTool.pluginManager.shutdownEmulator();
+                        pluginManager.shutdownEmulator();
                         outputString = "There was an error";
                         return outputString;
                     }
 
-                    //citeTool.pluginManager.pcStarted();
-                    //citeTool.pc.start();
-                    //citeTool.pc.refreshGameinfo(fullStatus);
-                    citeTool.pluginManager.invokeExternalCommandSynchronous("pc-start", new String[]{});
+                    pluginManager.pcStarted();
+                    pc.start();
+                    pc.refreshGameinfo(fullStatus);
                 }
                 outputString = "OK";
             }
